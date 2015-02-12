@@ -1,0 +1,1 @@
+from supernova import SnType1a, SnType2
