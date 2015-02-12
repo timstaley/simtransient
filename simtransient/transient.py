@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from pandas import Series, DataFrame
 from datetime import timedelta
 from simlightcurve.utils import convert_to_timedeltas, listify
-from simlightcurve.lightcurve import LightcurveBase
+from simlightcurve.solvers import LightcurveBase
 
 
 class TransientBase(object):
