@@ -1,8 +1,12 @@
 from __future__ import absolute_import
 from pandas import Series, DataFrame
 from datetime import timedelta
-from simlightcurve.utils import convert_to_timedeltas, listify
-from simlightcurve.solvers import LightcurveBase
+from simtransient.utils import convert_to_timedeltas, listify
+
+
+class CurveFamily(object):
+    def __init__(self, curve, parameter_distributions):
+        pass
 
 
 class TransientBase(object):
@@ -16,7 +20,7 @@ class TransientBase(object):
         ``self.lightcurves`` is a Dataframe, one column per waveband.
         """
         self.epoch0 = epoch0
-        self.lightcurves = DataFrame(index=['curve','lag_seconds'])
+        self.lightcurves = DataFrame(index=['curve','lag'])
         self.id = id
 
     def class_name(self):
@@ -52,16 +56,8 @@ class TransientBase(object):
         results = DataFrame(index=epochs)
         results.index.name = 'epoch'
         for wb in waveband:
-            waveband_t_inputs = t0_offsets - self.lightcurves[wb].lag_seconds
+            waveband_t_inputs = t0_offsets - self.lightcurves[wb].lag
             waveband_fluxes = self.lightcurves[wb].curve.flux(waveband_t_inputs)
             results[wb] = Series(index=epochs,
                                  data=waveband_fluxes)
         return results
-
-    def find_rise_time(self, waveband, flux_threshold):
-        band = self.lightcurves[waveband]
-        assert isinstance(band.curve, LightcurveBase)
-        t_off_sec = band.curve.find_rise_t_offset(flux_threshold)
-        t_off = timedelta(
-            seconds=band.lag_seconds+t_off_sec)
-        return self.epoch0+t_off

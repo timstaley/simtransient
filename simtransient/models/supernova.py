@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from datetime import timedelta
 
 from simtransient.transient import TransientBase
-from simlightcurve.curves import NormedModSigmoidExp, Minishell, Null
+from simlightcurve.curves import ModSigmoidExp, Minishell
 
 
 class SnType1a(TransientBase):
@@ -13,7 +13,7 @@ class SnType1a(TransientBase):
         decay_tau= 25*day
 
         self._add_lightcurve('optical', 0,
-                             NormedModSigmoidExp(peak_flux=1, b=0,
+                             ModSigmoidExp(peak_flux=1, b=0,
                                             t1_minus_t0=0,
                                             rise_tau=rise_tau,
                                             decay_tau=decay_tau,
@@ -31,7 +31,7 @@ class SnType2(TransientBase):
         t1_offset = decay_tau*0.8
         b=1.5e-13
         self._add_lightcurve('optical', 0,
-                             NormedModSigmoidExp(peak_flux=1, b=b,
+                             ModSigmoidExp(peak_flux=1, b=b,
                                             t1_minus_t0=t1_offset,
                                             rise_tau=rise_tau,
                                             decay_tau=decay_tau,
