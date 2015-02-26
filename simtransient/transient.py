@@ -4,8 +4,8 @@ from datetime import timedelta
 from simtransient.utils import convert_to_timedeltas, listify
 
 
-class CurveFamily(object):
-    def __init__(self, curve, parameter_distributions):
+class CurveEnsemble(object):
+    def __init__(self, curve, parameter_logpriors):
         pass
 
 
