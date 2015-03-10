@@ -1,5 +1,6 @@
 import types
 from collections import Iterable
+import numpy as np
 import pandas as pd
 
 
@@ -40,3 +41,26 @@ def convert_to_timedeltas(epochs, epoch0):
         ).astype('timedelta64[s]'),
         name='t_offset')
     return offsets
+
+
+def mahalanobis_sq(icov, vecs):
+    """
+    Calculates the Mahalanobis distance for many vectors at once.
+
+
+    Args:
+        icov: Inverse-covariance matrix
+        vecs: A nested array containing the mean-subtracted vector positions,
+            e.g. something of the form:
+
+                np.asarray([vec1, vec2, ...])
+
+            where vec1 etc are 1-dim ndarrays.
+
+    Returns:
+        (1-d ndarray): Array containing the square of the Mahalanobis
+            distance for each vector.
+
+    """
+    return np.sum(vecs.T * np.dot(icov, vecs.T), axis=0)
+
