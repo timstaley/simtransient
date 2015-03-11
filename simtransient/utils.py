@@ -64,26 +64,25 @@ def mahalanobis_sq(icov, vecs):
     """
     return np.sum(vecs.T * np.dot(icov, vecs.T), axis=0)
 
-def build_covariance_matrix(variances, correlations):
+def build_covariance_matrix(sigmas, correlations):
     """
-    Builds a covariance matrix from variances and correlations.
+    Builds a covariance matrix from sigmas and correlations.
 
     Args:
-        variances (dict): Dict mapping parameter name to variance.
-            If column/row ordering of the covariance matrix is important, this
-            should be an instance of :py:class:`collections.OrderedDict`.
+        sigmas (pandas.Series): Series mapping parameter name to std. dev.
         correlations (dict): Mapping of tuples to correlations, e.g.
             ``{(param1,param2):0.5}``. Default correlation for unspecified
             pairs is zero.
     Returns:
         (DataFrame): Covariance matrix.
     """
-    cov=pd.DataFrame(
-        data=np.diag(np.array(variances.values(),dtype=np.float)),
-        columns=variances.keys(),
-        index=variances.keys())
+    cov=pd.DataFrame(index=sigmas.index,
+                     columns=sigmas.index,
+                     data=np.diag(sigmas**2),
+                     dtype=np.float
+            )
     for param_pair, pair_corr in correlations.items():
         p1,p2=param_pair
-        pair_cov = pair_corr * np.sqrt(variances[p1]*variances[p2])
+        pair_cov = pair_corr * sigmas[p1]*sigmas[p2]
         cov.loc[p1,p2] = cov.loc[p2,p1] = pair_cov
     return cov
