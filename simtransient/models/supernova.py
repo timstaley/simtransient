@@ -2,13 +2,14 @@ from __future__ import absolute_import
 from simlightcurve.curves import ModSigmoidExp, Minishell
 from simtransient.utils import build_covariance_matrix, mahalanobis_sq
 from collections import OrderedDict
+import numpy as np
 import pandas as pd
 
 class Sn1aOpticalEnsemble(object):
     curve = ModSigmoidExp
     fixed_params = {'b': 0.0, 't1_minus_t0':0.0}
 
-    #Multivariate gaussian params:
+    #Multivariate gaussian hyperparams:
     gpars = pd.DataFrame(index=('mu','sigma'))
     gpars['a'] = 1.15, 0.15
     gpars['rise_tau']= 3, 0.5
@@ -19,9 +20,25 @@ class Sn1aOpticalEnsemble(object):
                   ('rise_tau','decay_tau'):0.7,
                   }
 
+
     def __init__(self):
         self.gpar_cov = build_covariance_matrix(self.gpars.loc['sigma'],
                                                 self.gpar_corrs)
+        self.gpar_icov = np.linalg.inv(self.gpar_cov)
+        ndim=len(self.gpars.T)
+        icov_det = np.linalg.det(self.gpar_icov)
+        self.c = np.sqrt(((2 * np.pi) ** ndim) * np.linalg.det(self.gpar_cov))
+        self._lnprior_offset= -np.log(self.c)
+
+
+    def lnprior(self, params):
+        # def lnprob(mu,x,icov):
+        mu = self.gpars.loc['mu']
+        diff = params-mu
+        raw_value = -0.5*(np.sum(mahalanobis_sq(self.gpar_icov,diff)))
+        return self._lnprior_offset + raw_value
+
+
 
     # @staticmethod
     # def logprior(a,
