@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 class Sn1aOpticalEnsemble(object):
-    curve = ModSigmoidExp
+    curve_class = ModSigmoidExp
     fixed_params = {'b': 0.0, 't1_minus_t0':0.0}
 
     #Multivariate gaussian hyperparams:
@@ -27,62 +27,40 @@ class Sn1aOpticalEnsemble(object):
         self.gpar_icov = np.linalg.inv(self.gpar_cov)
         ndim=len(self.gpars.T)
         icov_det = np.linalg.det(self.gpar_icov)
-        self.c = np.sqrt(((2 * np.pi) ** ndim) * np.linalg.det(self.gpar_cov))
-        self._lnprior_offset= -np.log(self.c)
+        c = np.sqrt(((2 * np.pi) ** ndim) * np.linalg.det(self.gpar_cov))
+        self._lnprior_offset= -np.log(c)
 
 
     def lnprior(self, params):
+        """
+        Since this is a prior, in the case that params is not a vector
+        but a 2-d array (i.e. a stack of vectors), then we use broadcasting
+        to calculate the lnprior for each vector of hyperparameters in turn.
+
+        (Contrast with the log-likelihood for multiple measurements of a
+         multivariate Gaussian, where we should sum the results)
+        """
         # def lnprob(mu,x,icov):
         mu = self.gpars.loc['mu']
-        diff = params-mu
-        raw_value = -0.5*(np.sum(mahalanobis_sq(self.gpar_icov,diff)))
+        diff = params-mu.values
+        raw_value = -0.5*(mahalanobis_sq(self.gpar_icov,diff))
         return self._lnprior_offset + raw_value
 
+    def _get_eval_pars(self, gpars, t0):
+        epars = dict(a=gpars[0],rise_tau=gpars[1],decay_tau=gpars[2],
+                      t0=t0)
+        epars.update(self.fixed_params)
+        return epars
 
 
-    # @staticmethod
-    # def logprior(a,
-    #              b,
-    #              t1_minus_t0,
-    #              rise_tau,
-    #              decay_tau, ):
+    def get_curve(self, a, rise_tau, decay_tau, t0=0):
+        kwargs = dict(a=a,rise_tau=rise_tau,decay_tau=decay_tau,
+                      t0=t0)
+        curve_params = self.fixed_params.copy()
+        curve_params.update(kwargs)
+        # print curve_params
+        return self.curve_class(**curve_params)
 
-
-
-
-# class SnType1a(TransientBase):
-#     def __init__(self, epoch0):
-#         super(SnType1a, self).__init__(epoch0)
-#         day = 24*60*60#units of seconds
-#         rise_tau= 9*day
-#         decay_tau= 25*day
-#
-#         self._add_lightcurve('optical', 0,
-#                              ModSigmoidExp(peak_flux=1, b=0,
-#                                             t1_minus_t0=0,
-#                                             rise_tau=rise_tau,
-#                                             decay_tau=decay_tau,
-#                                             )
-#         )
-#         self._add_lightcurve('radio',0,Null())
-
-
-# class SnType2(TransientBase):
-#     def __init__(self, epoch0):
-#         super(SnType2, self).__init__(epoch0)
-#         day = 24*60*60#units of seconds
-#         rise_tau= 9*day
-#         decay_tau= 25*day
-#         t1_offset = decay_tau*0.8
-#         b=1.5e-13
-#         self._add_lightcurve('optical', 0,
-#                              ModSigmoidExp(peak_flux=1, b=b,
-#                                             t1_minus_t0=t1_offset,
-#                                             rise_tau=rise_tau,
-#                                             decay_tau=decay_tau,
-#                                             )
-#         )
-#         self._add_lightcurve('radio', timedelta(days=45),
-#                              Minishell(k1=2.5e2, k2=1.38e2, k3=1.47e5, beta=-1.5,
-#                                            delta1=-2.56, delta2=-2.69)
-#         )
+    def evaluate(self, t, a,rise_tau,decay_tau, t0):
+        epars = self._get_eval_pars((a,rise_tau,decay_tau),t0)
+        return self.curve_class.evaluate(t,**epars)
