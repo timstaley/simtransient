@@ -11,9 +11,9 @@ class TestSN1a(TestCase):
         self.scipy_rv = multivariate_normal(mean=ens.gpars.loc['mu'],
                                             cov=ens.gpar_cov)
 
-    def test_prior(self):
+    def test_gpar_prior(self):
         test_samples = self.scipy_rv.rvs(int(1e5))
         scipy_logpdfs = self.scipy_rv.logpdf(test_samples)
-        lnpriors = self.ens.lnprior(test_samples)
+        lnpriors = self.ens.gpar_lnprior(test_samples)
         self.assertTrue(np.allclose(scipy_logpdfs,
                                     lnpriors))
