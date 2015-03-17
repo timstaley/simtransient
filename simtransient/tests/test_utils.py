@@ -30,3 +30,20 @@ class TestMahalanobis(TestCase):
             scipy_results[idx] = mahalanobis(self.means, s, self.icov)**2
 
         self.assertTrue(np.allclose(scipy_results, simtransient_results))
+
+
+class TestUniformLnPrior(TestCase):
+    def test_01(self):
+        prior1 = utils.get_uniform_lnprior(0,1)
+        prior2 = utils.get_uniform_lnprior(1,0)
+
+        for prior in prior1,prior2:
+            self.assertTrue(prior(0.5)==0)
+            self.assertTrue(prior(0.)==-np.inf)
+            self.assertTrue(prior(1.)==-np.inf)
+
+    def test_arbitrary_range(self):
+        prior = utils.get_uniform_lnprior(-5, 5)
+        self.assertAlmostEqual(np.exp(prior(-4)),1/10.)
+        self.assertAlmostEqual(np.exp(prior(4)),1/10.)
+        self.assertTrue(prior(5.)==-np.inf)

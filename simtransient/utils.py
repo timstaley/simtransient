@@ -13,17 +13,19 @@ def listify(x):
     else:
         return [x]
 
+
 def multifreq_daterange(start, *timedelta_freq_tuples):
     """
     Convenience wrapper around pandas.date_range, appends multiple
     date ranges with specified timedelta periods and frequency spacings.
     """
-    rngs=[pd.Index([start])]
+    rngs = [pd.Index([start])]
     for tdelta, freq in timedelta_freq_tuples:
         prev_end = rngs[-1][-1]
         rngs.append(pd.date_range(prev_end, prev_end + tdelta, freq=freq))
     epochs = sum(rngs)
     return epochs
+
 
 def convert_to_timedeltas(epochs, epoch0):
     """
@@ -38,7 +40,7 @@ def convert_to_timedeltas(epochs, epoch0):
     """
     offsets = pd.Series(
         (pd.Series(epochs, index=epochs) - pd.Series(epoch0, index=epochs)
-        ).astype('timedelta64[s]'),
+         ).astype('timedelta64[s]'),
         name='t_offset')
     return offsets
 
@@ -64,6 +66,7 @@ def mahalanobis_sq(icov, vecs):
     """
     return np.sum(vecs.T * np.dot(icov, vecs.T), axis=0)
 
+
 def build_covariance_matrix(sigmas, correlations):
     """
     Builds a covariance matrix from sigmas and correlations.
@@ -76,13 +79,27 @@ def build_covariance_matrix(sigmas, correlations):
     Returns:
         (DataFrame): Covariance matrix.
     """
-    cov=pd.DataFrame(index=sigmas.index,
-                     columns=sigmas.index,
-                     data=np.diag(sigmas**2),
-                     dtype=np.float
-            )
+    cov = pd.DataFrame(index=sigmas.index,
+                       columns=sigmas.index,
+                       data=np.diag(sigmas ** 2),
+                       dtype=np.float
+                       )
     for param_pair, pair_corr in correlations.items():
-        p1,p2=param_pair
-        pair_cov = pair_corr * sigmas[p1]*sigmas[p2]
-        cov.loc[p1,p2] = cov.loc[p2,p1] = pair_cov
+        p1, p2 = param_pair
+        pair_cov = pair_corr * sigmas[p1] * sigmas[p2]
+        cov.loc[p1, p2] = cov.loc[p2, p1] = pair_cov
     return cov
+
+
+def get_uniform_lnprior(x1, x2):
+    xmin = min(x1, x2)
+    xmax = max(x1, x2)
+    uniform_value = -np.log(xmax - xmin)
+
+    def uniform_prior(x):
+        if xmin < x < xmax:
+            return uniform_value
+        else:
+            return -np.inf
+
+    return uniform_prior
