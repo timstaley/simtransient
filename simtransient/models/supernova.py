@@ -11,34 +11,37 @@ class Sn1aOpticalEnsemble(object):
     fixed_params = {'b': 0.0, 't1_minus_t0': 0.0}
 
     # Multivariate gaussian hyperparams:
-    gpars = pd.DataFrame(index=('mu', 'sigma'))
-    gpars['a'] = 1.15, 0.15
-    gpars['rise_tau'] = 3, 0.5
-    gpars['decay_tau'] = 15, 3
+    gauss_pars = pd.DataFrame(index=('mu', 'sigma'))
+    gauss_pars['a'] = 1.15, 0.15
+    gauss_pars['rise_tau'] = 3, 0.5
+    gauss_pars['decay_tau'] = 15, 3
 
     gpar_corrs = {('a', 'rise_tau'): 0.9,
                   ('a', 'decay_tau'): 0.5,
                   ('rise_tau', 'decay_tau'): 0.7,
                   }
 
-    free_pars = list(gpars.keys())
+    free_pars = list(gauss_pars.keys())
     free_pars.append('t0')
     assert len(free_pars) + len(fixed_params) == len(curve_class.param_names)
 
 
+
     def __init__(self):
-        self.gpar_cov = build_covariance_matrix(self.gpars.loc['sigma'],
+        self.gauss_cov = build_covariance_matrix(self.gauss_pars.loc['sigma'],
                                                 self.gpar_corrs)
-        self.gpar_icov = np.linalg.inv(self.gpar_cov)
-        ndim = len(self.gpars.T)
-        icov_det = np.linalg.det(self.gpar_icov)
-        c = np.sqrt(((2 * np.pi) ** ndim) * np.linalg.det(self.gpar_cov))
+        self.gauss_icov = np.linalg.inv(self.gauss_cov)
+        ndim = len(self.gauss_pars.T)
+        icov_det = np.linalg.det(self.gauss_icov)
+        c = np.sqrt(((2 * np.pi) ** ndim) * np.linalg.det(self.gauss_cov))
         self._lnprior_offset = -np.log(c)
 
+    def t0_lnprior(self, t0_sample):
+        return 0
 
-    def gpar_lnprior(self, gpar_sample):
+    def gauss_lnprior(self, gauss_par_sample):
         """
-        Since this is a prior, in the case that gpar_sample is not a vector
+        Since this is a prior, in the case that gauss_par_sample is not a vector
         but a 2-d array (i.e. a stack of vectors), then we use broadcasting
         to calculate the lnprior for each vector of hyperparameters in turn.
 
@@ -46,10 +49,15 @@ class Sn1aOpticalEnsemble(object):
          multivariate Gaussian, where we should sum the results)
         """
         # def lnprob(mu,x,icov):
-        mu = self.gpars.loc['mu']
-        diff = gpar_sample - mu.values
-        raw_value = -0.5 * (mahalanobis_sq(self.gpar_icov, diff))
+        mu = self.gauss_pars.T.mu
+        diff = gauss_par_sample - mu.values
+        raw_value = -0.5 * (mahalanobis_sq(self.gauss_icov, diff))
         return self._lnprior_offset + raw_value
+
+    def lnprior(self, model_pars):
+        return ( self.gauss_lnprior(model_pars[:-1]) +
+                    self.t0_lnprior(model_pars[-1])
+                 )
 
     def _get_eval_pars(self, gpars, t0):
         epars = dict(a=gpars[0], rise_tau=gpars[1], decay_tau=gpars[2],

@@ -91,15 +91,3 @@ def build_covariance_matrix(sigmas, correlations):
     return cov
 
 
-def get_uniform_lnprior(x1, x2):
-    xmin = min(x1, x2)
-    xmax = max(x1, x2)
-    uniform_value = -np.log(xmax - xmin)
-
-    def uniform_prior(x):
-        if xmin < x < xmax:
-            return uniform_value
-        else:
-            return -np.inf
-
-    return uniform_prior
