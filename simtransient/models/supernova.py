@@ -59,13 +59,6 @@ class Sn1aOpticalEnsemble(object):
                     self.t0_lnprior(model_pars[-1])
                  )
 
-    def _get_eval_pars(self, gpars, t0):
-        epars = dict(a=gpars[0], rise_tau=gpars[1], decay_tau=gpars[2],
-                     t0=t0)
-        epars.update(self.fixed_params)
-        return epars
-
-
     def get_curve(self, a, rise_tau, decay_tau, t0=0):
         kwargs = dict(a=a, rise_tau=rise_tau, decay_tau=decay_tau,
                       t0=t0)
@@ -75,5 +68,11 @@ class Sn1aOpticalEnsemble(object):
         return self.curve_class(**curve_params)
 
     def evaluate(self, t, a, rise_tau, decay_tau, t0):
-        epars = self._get_eval_pars((a, rise_tau, decay_tau), t0)
-        return self.curve_class.evaluate(t, **epars)
+        return self.curve_class.evaluate(t,
+                                         a,
+                                         self.fixed_params['b'],
+                                         self.fixed_params['t1_minus_t0'],
+                                         rise_tau,
+                                         decay_tau,
+                                         t0
+                                         )
