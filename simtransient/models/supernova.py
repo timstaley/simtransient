@@ -16,7 +16,7 @@ class Sn1aOpticalEnsemble(object):
     gauss_pars['rise_tau'] = 3, 0.5
     gauss_pars['decay_tau'] = 15, 3
 
-    gpar_corrs = {('a', 'rise_tau'): 0.9,
+    gauss_correlations = {('a', 'rise_tau'): 0.9,
                   ('a', 'decay_tau'): 0.5,
                   ('rise_tau', 'decay_tau'): 0.7,
                   }
@@ -29,7 +29,7 @@ class Sn1aOpticalEnsemble(object):
 
     def __init__(self):
         self.gauss_cov = build_covariance_matrix(self.gauss_pars.loc['sigma'],
-                                                self.gpar_corrs)
+                                                self.gauss_correlations)
         self.gauss_icov = np.linalg.inv(self.gauss_cov)
         ndim = len(self.gauss_pars.T)
         icov_det = np.linalg.det(self.gauss_icov)
