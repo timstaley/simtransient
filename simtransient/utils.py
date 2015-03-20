@@ -91,3 +91,16 @@ def build_covariance_matrix(sigmas, correlations):
     return cov
 
 
+def subsample_curves(ensemble, sample, tsteps, size=100):
+    subsamples = sample[np.random.choice(len(sample), size=size, replace=False)]
+
+    # Have tried allocated an empty 2d array, but this is as fast and simpler:
+    ss_curves = np.array([ensemble.evaluate(tsteps, *theta)
+                          for theta in subsamples])
+    return ss_curves
+
+
+def forecast_ensemble(ensemble, sample, t_forecast):
+    return np.fromiter(
+        (ensemble.evaluate(t_forecast, *theta) for theta in sample),
+        dtype=np.float)
