@@ -12,6 +12,7 @@ from simtransient.utils import subsample_curves, forecast_ensemble
 
 def graded_errorbar(obs_data,
                     obs_sigma,
+                    label=None,
                     color='g',
                     base_elw=1.5,
                     ms=16,
@@ -20,7 +21,10 @@ def graded_errorbar(obs_data,
     if ax is None:
         ax = plt.gca()
 
+
+
     ax.errorbar(obs_data.index, obs_data,
+                label=label,
                 c=color,
                 linewidth=0,
                 elinewidth=0,
@@ -77,15 +81,20 @@ def forecast_plot(ensemble, samples, tsteps,
 
     data_ms = 25
 
-    ss_curves = subsample_curves(ensemble, samples, tsteps)
+    ss_curves = subsample_curves(ensemble, samples, tsteps,
+                                 size=subsample_size)
     seaborn.tsplot(ss_curves, tsteps,
                    err_style="unit_traces",
-                   ax=ts_ax, ls='',
-                   color=c_trace)
+                   ax=ts_ax,
+                   ls='',
+                   color=c_trace,
+                   # condition='Samples'
+                   )
 
     if obs_data is not None:
         graded_errorbar(obs_data,
                         obs_sigma,
+                        label='Observations',
                         ms=data_ms,
                         ax=ts_ax,
                         color=c_data,
@@ -93,8 +102,9 @@ def forecast_plot(ensemble, samples, tsteps,
 
     if true_curve is not None:
         ts_ax.plot(tsteps, true_curve(tsteps), ls='--', c=c_true,
-                   label='true',
+                   label='True',
                    lw=lw_overplot)
+
 
     if t_forecast is not None:
         forecast_data = forecast_ensemble(ensemble, samples, t_forecast)
@@ -105,6 +115,7 @@ def forecast_plot(ensemble, samples, tsteps,
                       alpha=alpha_forecast,
                       )
         ts_ax.axhline(np.mean(forecast_data),
+                      label='Forecast',
                       ls=ls_overplot,
                       lw=lw_overplot,
                       color=c_forecast,
@@ -125,4 +136,5 @@ def forecast_plot(ensemble, samples, tsteps,
             hist_ax.axhline(true_curve(t_forecast),
                             ls=ls_overplot,
                             c=c_true)
-    plt.legend()
+
+    ts_ax.legend(loc='best')
