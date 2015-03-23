@@ -11,7 +11,7 @@ class Sn1aOpticalEnsemble(MultivarGaussHypers):
 
     # Multivariate gaussian hyperparams:
     default_gauss_pars = pd.DataFrame(index=('mu', 'sigma'))
-    default_gauss_pars['a'] = 1.15, 0.15
+    default_gauss_pars['a'] = 15, 5
     default_gauss_pars['rise_tau'] = 3, 0.5
     default_gauss_pars['decay_tau'] = 15, 3
 
@@ -32,6 +32,12 @@ class Sn1aOpticalEnsemble(MultivarGaussHypers):
             fixed_pars={'b': 0.0, 't1_minus_t0': 0.0}
         )
 
+    def gauss_lnprior(self, gauss_par_sample):
+        # Block any samples with a<0:
+        if (gauss_par_sample[0] < 0):
+            return -np.inf
+        return super(Sn1aOpticalEnsemble, self).gauss_lnprior(gauss_par_sample)
+
     def evaluate(self, t, a, rise_tau, decay_tau, t0):
         return self.curve_class.evaluate(t,
                                          a,
@@ -49,7 +55,7 @@ class Sn2OpticalEnsemble(MultivarGaussHypers):
 
     # Multivariate gaussian hyperparams:
     default_gauss_pars = pd.DataFrame(index=('mu', 'sigma'))
-    default_gauss_pars['a'] = 1.15, 0.15
+    default_gauss_pars['a'] = 12, 5
     default_gauss_pars['b'] = 4e-3, 1.5e-3
     default_gauss_pars['t1_minus_t0'] = 16, 1.5
     default_gauss_pars['rise_tau'] = 3, 0.5
@@ -75,8 +81,9 @@ class Sn2OpticalEnsemble(MultivarGaussHypers):
         )
 
     def gauss_lnprior(self, gauss_par_sample):
-        # Block any samples with b<0:
-        if gauss_par_sample[1] < 0:
+        # Block any samples with a or b<0:
+        if (gauss_par_sample[0] < 0 or
+                gauss_par_sample[1] < 0):
             return -np.inf
         return super(Sn2OpticalEnsemble, self).gauss_lnprior(gauss_par_sample)
 
