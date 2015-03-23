@@ -1,7 +1,11 @@
 from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
-from simtransient.utils import build_covariance_matrix, mahalanobis_sq
 import numpy as np
+from simtransient.utils import build_covariance_matrix, mahalanobis_sq
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 
 class MultivarGaussHypers(object):
@@ -19,7 +23,7 @@ class MultivarGaussHypers(object):
                  curve_class,
                  gauss_pars,
                  gauss_correlations,
-                 fixed_pars
+                 fixed_pars=None
                  ):
         """
         Initialization.
@@ -38,6 +42,8 @@ class MultivarGaussHypers(object):
             fixed_pars (dict): Maps fixed param names to their fixed values.
         """
 
+        if fixed_pars is None:
+            fixed_pars={}
         # Sanity check:
         # We expect to supply the curve_class with
         # generic Gaussian + fixed params, plus t0
@@ -52,6 +58,13 @@ class MultivarGaussHypers(object):
         #Calculate various properties of the Gaussian hyperparams:
         self.gauss_cov = build_covariance_matrix(self.gauss_pars.T.sigma,
                                                  self.gauss_correlations)
+        try:
+            np.linalg.cholesky(self.gauss_cov)
+        except np.linalg.LinAlgError:
+            logger.error("Provided correlation values result in a covariance"
+                         " which is not positive semidefinite.")
+            raise
+
         self.gauss_icov = np.linalg.inv(self.gauss_cov)
         ndim_gauss = len(self.gauss_pars.T)
         c = np.sqrt(((2 * np.pi) ** ndim_gauss) * np.linalg.det(self.gauss_cov))
