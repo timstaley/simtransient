@@ -82,12 +82,13 @@ class ModelRun(object):
 
     def plot_forecast(self,
                       tsteps,
-                      subsample_size=75,
-                      plot_data=True,
                       t_forecast=None,
+                      plot_data=True,
                       true_curve=None,
+                      subsample_size=75,
                       axes=None,
                       palette=None,
+                      alpha_hist=0.6,
                       ):
 
 
@@ -182,9 +183,11 @@ class ModelRun(object):
                             color=c_forecast,
                             alpha=alpha_forecast,
                             )
-            hist_ax.hist(forecast_data, orientation='horizontal',
+            hist_ax.hist(forecast_data,
+                         orientation='horizontal',
                          normed=True,
-                         color=c_trace)
+                         color=c_trace,
+                         alpha=alpha_hist)
             _ = hist_ax.set_ylim(ts_ax.get_ylim())
             if true_curve:
                 hist_ax.axhline(true_curve(t_forecast),
@@ -192,3 +195,4 @@ class ModelRun(object):
                                 c=c_true)
 
             ts_ax.legend(loc='best')
+        return ts_ax,hist_ax

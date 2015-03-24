@@ -56,7 +56,7 @@ class Sn2OpticalEnsemble(MultivarGaussHypers):
     # Multivariate gaussian hyperparams:
     default_gauss_pars = pd.DataFrame(index=('mu', 'sigma'))
     default_gauss_pars['a'] = 12, 5
-    default_gauss_pars['b'] = 4e-3, 1.5e-3
+    default_gauss_pars['b'] = 4.5e-3, 7e-4
     default_gauss_pars['t1_minus_t0'] = 16, 1.5
     default_gauss_pars['rise_tau'] = 3, 0.5
     default_gauss_pars['decay_tau'] = 15, 3
