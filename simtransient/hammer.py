@@ -58,7 +58,7 @@ def prep_pt_sampler(init_params,
 
 
 def trim_chain(sampler, pt=False,
-               burn_length=2):
+               burn_length=3):
     if not pt:
         acceptance = np.median(sampler.acceptance_fraction)
         acorr = np.ceil(np.max(sampler.get_autocorr_time()))

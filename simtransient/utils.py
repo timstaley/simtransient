@@ -91,11 +91,14 @@ def build_covariance_matrix(sigmas, correlations):
     return cov
 
 
-def subsample_curves(ensemble, sample, tsteps, size=100):
-    subsamples = sample[np.random.choice(len(sample), size=size, replace=False)]
+def subsample_curves(ensemble, sample, tsteps, size=100, fixed_pars=None):
+    size=min(size, len(sample))
+    if fixed_pars is None:
+        fixed_pars={}
 
+    subsamples = sample[np.random.choice(len(sample), size=size, replace=False)]
     # Have tried allocated an empty 2d array, but this is as fast and simpler:
-    ss_curves = np.array([ensemble.evaluate(tsteps, *theta)
+    ss_curves = np.array([ensemble.evaluate(tsteps, *theta, **fixed_pars)
                           for theta in subsamples])
     return ss_curves
 
