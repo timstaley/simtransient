@@ -21,20 +21,23 @@ def graded_errorbar(obs_data,
     if ax is None:
         ax = plt.gca()
 
-
+    first_plot_kwargs = kwargs.copy()
+    if label is not None:
+        first_plot_kwargs['label']=label
 
     ax.errorbar(obs_data.index, obs_data,
-                label=label,
-                c=color,
+                ecolor=color,
+                mfc=color,
                 linewidth=0,
                 elinewidth=0,
                 ms=ms,
                 marker='.',
-                **kwargs
+                **first_plot_kwargs
                 )
-    if obs_sigma:
+    if obs_sigma is not None:
         ax.errorbar(obs_data.index, obs_data, yerr=1 * obs_sigma,
-                    c=color,
+                    ecolor=color,
+                    mfc=color,
                     linewidth=0,
                     elinewidth=base_elw * 3,
                     ms=0,
@@ -42,10 +45,10 @@ def graded_errorbar(obs_data,
                     **kwargs
                     )
         ax.errorbar(obs_data.index, obs_data, yerr=2 * obs_sigma,
-                    c=color,
+                    ecolor=color,
+                    mfc=color,
                     linewidth=0,
                     elinewidth=base_elw,
-                    mfc=color,
                     ms=0,
                     marker='',
                     **kwargs
