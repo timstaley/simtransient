@@ -40,7 +40,6 @@ class ModelRun(object):
         self.nwalkers = nwalkers
         self.ntemps = ntemps
 
-
         self.pt = use_pt
         self.chainstats = None
         self.trimmed = None  # Burned and thinned samples
@@ -70,32 +69,36 @@ class ModelRun(object):
 
         self.set_init_par_ball()
 
+
+
+    def get_sampler(self, **kwargs):
         if not self.pt:
-            self.sampler = emcee.EnsembleSampler(nwalkers,
-                                                 self.ndim,
-                                                 self.lnprob,
-                                                 args=self.lnlike_args,
-                                                 **emcee_kwargs
-                                                 )
+            return emcee.EnsembleSampler(self.nwalkers,
+                                         self.ndim,
+                                         self.lnprob,
+                                         args=self.lnlike_args,
+                                         **kwargs
+                                         )
         else:
-            self.sampler = emcee.PTSampler(ntemps,
-                                           nwalkers,
-                                           self.ndim,
-                                           logl=self.lnlike,
-                                           logp=self.lnprior,
-                                           loglargs=self.lnlike_args,
-                                           **emcee_kwargs
-                                           )
+            return emcee.PTSampler(self.ntemps,
+                                   self.nwalkers,
+                                   self.ndim,
+                                   logl=self.lnlike,
+                                   logp=self.lnprior,
+                                   loglargs=self.lnlike_args,
+                                   **kwargs
+                                   )
+
 
     @property
-    def rawchain(self):
+    def postchain(self):
         """
         Get the the posterior sample chain.
         """
         if not self.pt:
-            return self.sampler.chain
+            return self._chain
         else:
-            return self.sampler.chain[0]
+            return self._chain[0]
 
     @property
     def init_curve(self):
@@ -158,22 +161,23 @@ class ModelRun(object):
                                        self.ndim))
 
 
-    def run(self, nsteps):
-        pos, lnprob, rstate = self.sampler.run_mcmc(self.init_par_ball,
+    def run(self, sampler,nsteps):
+        pos, lnprob, rstate = sampler.run_mcmc(self.init_par_ball,
                                                     N=nsteps)
         self.init_par_ball = pos
-        self.chainstats, self.trimmed = hammer.trim_chain(self.sampler, self.pt)
+        self.chainstats, self.trimmed = hammer.trim_chain(sampler, self.pt)
+        self._chain = sampler.chain
         return pos, lnprob, rstate
 
 
 
     def plot_walkers(self, axes=None):
-        stplot.chain.all_walkers(self.rawchain, self.chainstats,
+        stplot.chain.all_walkers(self.postchain, self.chainstats,
                                  self.free_par_names, axes)
 
 
     def plot_hists(self, axes=None):
-        stplot.chain.all_hists(self.rawchain, self.chainstats,
+        stplot.chain.all_hists(self.postchain, self.chainstats,
                                self.free_par_names, axes=axes)
 
 
@@ -329,3 +333,5 @@ class ModelRun(object):
         else:
             prob = lp + self.gaussian_lnlikelihood(theta)
         return prob
+
+
