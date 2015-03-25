@@ -66,6 +66,7 @@ class Sn2OpticalEnsemble(MultivarGaussHypers):
                                   ('rise_tau', 'decay_tau'): 0.5,
                                   ('b', 't1_minus_t0'): .5,
                                   ('decay_tau', 't1_minus_t0'): 0.7,
+                                  ('decay_tau', 'b'): -0.05,
                                   }
 
 

@@ -9,6 +9,7 @@ from simtransient.models.multivariate import MultivarGaussHypers
 import simtransient.hammer as hammer
 import simtransient.plot as stplot
 import simtransient.utils as stutils
+from simtransient.measures import gauss_lnlikelihood
 
 
 class ModelRun(object):
@@ -28,23 +29,39 @@ class ModelRun(object):
         self.ensemble = ensemble
         self.obs_data = obs_data
         self.obs_sigma = obs_sigma
-        self.pt = use_pt
+        self.ml_params = None
+        self.map_params = None
+        self.nwalkers = nwalkers
 
+        self.pt = use_pt
         self.chainstats = None
         self.trimmed = None  # Burned and thinned samples
+
+        self.init_par_ball = init_par_ball
 
         if emcee_kwargs is None:
             emcee_kwargs = {}
 
+        # Defaults only apply in no-data case, modified later if data present...
+        self.free_par_names = ensemble.gauss_pars.keys()
+        if init_pars is None:
+                self.init_pars = ensemble.gauss_pars.T.mu
+
         if obs_data is None:
-            self.free_par_names = ensemble.gauss_pars.keys()
             self.fixed_pars = {'t0': 0}
-            if init_pars is None:
-                self.init_pars = ensemble.gauss_pars.T.mu.values
             self.lnprior = ensemble.gauss_lnprior
             self.lnprob = ensemble.gauss_lnprior
             self.lnlike_args = []
             self.ndim = len(self.init_pars)
+            self.set_init_pars_based_on_priors()
+        else:
+            self.free_par_names.append('t0')
+            self.init_pars['t0']=obs_data
+            self.lnprior = ensemble.lnprior
+            self.lnlike = self.gauss_lnlikelihood
+            self.lnlike_args= []
+            self.lnprob = self.gaussian_lnprob
+
 
         if not self.pt:
             self.sampler = emcee.EnsembleSampler(nwalkers,
@@ -53,11 +70,49 @@ class ModelRun(object):
                                                  args=self.lnlike_args,
                                                  **emcee_kwargs
             )
-            if np.isscalar(init_par_ball):
-                self.init_par_ball = ( self.init_pars +
-                                       init_par_ball * np.random.randn(
-                                           nwalkers * self.ndim).reshape(
-                                           nwalkers, self.ndim))
+
+
+
+    def set_init_pars_based_on_priors(self):
+        if np.isscalar(self.init_par_ball):
+            if not self.pt:
+                self.init_par_ball = ( self.init_pars.values +
+                                           self.init_par_ball * np.random.randn(
+                                               self.nwalkers * self.ndim).reshape(
+                                               self.nwalkers, self.ndim))
+            else:
+                raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+
+
+
+    def gauss_lnlikelihood(self, theta):
+        """
+        Model likelihood assuming unbiased Gaussian noise of width ``obs_sigma``.
+
+        obs_sigma can be scalar or an array matching obs_data
+        (latter needs testing but I think it's correct)
+
+        ..math:
+
+            -0.5 \sum_{i=1}^N \left[ ln(2\pi\sigma_i^2) +
+                                    ((x_i - \alpha_i)/\sigma_i)^2  \right]
+
+
+        """
+        intrinsic_fluxes = self.ensemble.evaluate(self.obs_data.index, *theta)
+        return -0.5 * np.sum(np.log(2 * np.pi * self.obs_sigma ** 2) +
+                             ((self.obs_data-intrinsic_fluxes) /self.obs_sigma) ** 2)
+
+    def gaussian_lnprob(self,theta):
+            lp = self.lnprior(theta)
+            if not np.isfinite(lp):
+                prob = -np.inf
+            else:
+                prob = lp + self.gauss_lnlikelihood(theta)
+            return prob
 
     def sample(self, nsteps):
         _ = self.sampler.run_mcmc(self.init_par_ball, N=nsteps)
