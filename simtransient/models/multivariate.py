@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import numpy as np
+import scipy.linalg
 from simtransient.utils import build_covariance_matrix, mahalanobis_sq
 import logging
 
@@ -59,7 +60,8 @@ class MultivarGaussHypers(object):
         self.gauss_cov = build_covariance_matrix(self.gauss_pars.T.sigma,
                                                  self.gauss_correlations)
         try:
-            np.linalg.cholesky(self.gauss_cov)
+            self.gauss_cholesky = scipy.linalg.cholesky(self.gauss_cov,
+                                                        lower=True)
         except np.linalg.LinAlgError:
             logger.error("Provided correlation values result in a covariance"
                          " which is not positive semidefinite.")

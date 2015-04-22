@@ -33,10 +33,24 @@ class Sn1aOpticalEnsemble(MultivarGaussHypers):
         )
 
     def gauss_lnprior(self, gauss_par_sample):
+        """
+        Calculate the prior probability for a given parameter-sample.
+
+        Args:
+            gauss_par_sample(np.array): Either a single sample of length
+                ndim, or a stack of samples with shape (nsample,ndim).
+        Returns:
+            lnpriors(np.array): The prior probability values, one for each
+                parameter sample passed.
+        """
         # Block any samples with a<0:
-        if (gauss_par_sample[0] < 0):
-            return -np.inf
-        return super(Sn1aOpticalEnsemble, self).gauss_lnprior(gauss_par_sample)
+        gauss_par_sample = np.atleast_2d(gauss_par_sample)
+        accept_idx = gauss_par_sample[:,0]>0
+        lnprior_vals = np.empty(len(gauss_par_sample))
+        lnprior_vals[accept_idx]= super(Sn1aOpticalEnsemble, self).gauss_lnprior(
+            gauss_par_sample[accept_idx])
+        lnprior_vals[~accept_idx]=-np.inf
+        return lnprior_vals
 
     def evaluate(self, t, a, rise_tau, decay_tau, t0):
         return self.curve_class.evaluate(t,
