@@ -103,7 +103,8 @@ class Sn2OpticalEnsemble(MultivarGaussHypers):
         return super(Sn2OpticalEnsemble, self).gauss_lnprior(gauss_par_sample)
 
 
-    def evaluate(self, t,
+    def evaluate(self,
+                 t,
                  a,
                  b,
                  t1_minus_t0,
