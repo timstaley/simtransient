@@ -181,12 +181,12 @@ class ModelRun(object):
                                self.free_par_names, axes=axes)
 
 
-    def plot_triangle(self, axes=None,
-                      truths=None):
+    def plot_triangle(self,
+                      **extra_triangle_plot_kwargs
+                      ):
         _ = triangle.corner(self.trimmed,
                             labels=self.free_par_names,
-                            quantiles=[0.05, 0.5, 0.95],
-                            truths=truths)
+                            **extra_triangle_plot_kwargs)
 
 
     def plot_forecast(self,
@@ -296,6 +296,14 @@ class ModelRun(object):
                          color=c_trace,
                          alpha=alpha_hist)
             _ = hist_ax.set_ylim(ts_ax.get_ylim())
+            hist_xlim=hist_ax.get_xlim()
+
+            #Prevent ticks overlapping too much:
+            max_hist_xticks = 4
+            hist_xloc = plt.MaxNLocator(max_hist_xticks)
+            hist_ax.xaxis.set_major_locator(hist_xloc)
+
+        
             if true_curve:
                 hist_ax.axhline(true_curve(t_forecast),
                                 ls=ls_overplot,
