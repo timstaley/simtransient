@@ -281,7 +281,7 @@ class ModelRun(object):
                                 c=c_true)
 
         if t_forecast is not None:
-            forecast_data = self._compute_forecast_data(t_forecast)
+            forecast_data = self.compute_forecast_data(t_forecast)
             if use_kde:
                 kde_ylims = self._plot_t_forecast_kde(
                                         forecast_data,
@@ -316,12 +316,30 @@ class ModelRun(object):
         return ts_ax, hist_ax
 
 
-    def _compute_forecast_data(self, t_forecast):
+    def compute_forecast_data(self, t_forecast):
         forecast_data = np.fromiter(
             (self.ensemble.evaluate(t_forecast, *theta, **self.fixed_pars)
              for theta in self.trimmed),
             dtype=np.float)
         return forecast_data
+
+    def get_kde(self, forecast_data, bandwidth=None):
+        kde = KDEUnivariate(forecast_data)
+        silverman_bw = bw_silverman(forecast_data)
+        if bandwidth is None or bandwidth < silverman_bw:
+            kde.fit(bw=silverman_bw)
+        else:
+            kde.fit(bw=bandwidth)
+        return kde
+
+
+        if noise_sigma is not None and noise_sigma>silverman_bw:
+            kde_obs=KDEUnivariate(forecast_data)
+            kde_obs.fit(bw=noise_sigma)
+            kde_obs = kde_obs.evaluate(y_steps)
+            kde_ax.plot(kde_obs, y_steps,
+                        c=c_kde, ls='-')
+
 
     def _plot_t_forecast_hist(self,
                               forecast_data,
@@ -362,27 +380,24 @@ class ModelRun(object):
             y_limits = (data_minmax[0] - 2.5 * noise_sigma,
                         data_minmax[1] + 2.5 * noise_sigma)
         y_steps = np.linspace(y_limits[0], y_limits[1], n_ysteps)
-        kde_intrinsic = KDEUnivariate(forecast_data)
 
-        intrinsic_bw = bw_silverman(forecast_data)
-        kde_intrinsic.fit(bw=intrinsic_bw)
-        kde_intrinsic = kde_intrinsic.evaluate(y_steps)
-        kde_ax.plot(kde_intrinsic, y_steps,
+        kde_intrinsic = self.get_kde(forecast_data)
+        kde_intrinsic_xpts = kde_intrinsic.evaluate(y_steps)
+        kde_ax.plot(kde_intrinsic_xpts, y_steps,
                     c=c_kde, ls='--')
 
-        if noise_sigma is not None and noise_sigma>intrinsic_bw:
-            kde_obs=KDEUnivariate(forecast_data)
-            kde_obs.fit(bw=noise_sigma)
-            kde_obs = kde_obs.evaluate(y_steps)
-            kde_ax.plot(kde_obs, y_steps,
+        if noise_sigma is not None:
+            kde_obs=self.get_kde(forecast_data, bandwidth=noise_sigma)
+            kde_obs_xpts = kde_obs.evaluate(y_steps)
+            kde_ax.plot(kde_obs_xpts, y_steps,
                         c=c_kde, ls='-')
             kde_ax.fill_betweenx(y_steps,
-                             0, kde_obs,
+                             0, kde_obs_xpts,
                              alpha=alpha_kde_fill,
                              color=c_kde)
         else:
             kde_ax.fill_betweenx(y_steps,
-                             0, kde_intrinsic,
+                             0, kde_intrinsic_xpts,
                              alpha=alpha_kde_fill,
                              color=c_kde)
 
@@ -420,9 +435,12 @@ class ModelRun(object):
     def gaussian_lnprob(self, theta):
         lp = self.lnprior(theta)
         if not np.isfinite(lp):
-            prob = -np.inf
+            return -np.inf
         else:
             prob = lp + self.gaussian_lnlikelihood(theta)
-        return prob
+        if np.isfinite(prob):
+            return prob
+        else:
+            return -np.inf
 
 

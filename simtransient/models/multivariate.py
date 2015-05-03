@@ -42,6 +42,7 @@ class MultivarGaussHypers(object):
                 Any missing pairs are equivalent to a zero-value correlation.
             fixed_pars (dict): Maps fixed param names to their fixed values.
         """
+        self.classname = self.__class__.__name__
 
         if fixed_pars is None:
             fixed_pars={}

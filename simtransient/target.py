@@ -3,6 +3,8 @@
 class Target(object):
     """
     Tracks a target, stores all measurements, provides model-dependent futures.
+
+    (Purely a sketch/stub, currently)
     """
     active = False
     new_data = False
