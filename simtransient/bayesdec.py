@@ -93,27 +93,27 @@ def compute_confusion_matrix(model_priors, pmfs):
     # 'sum_over_classes' is the sum at each data-location of the weighted_pmf,
     # i.e.
     # \sum_k(P[D_f|e,t_k]P[t_k])
-    sum_over_classes = pmfs.mul(model_priors.astype(float)).T.sum()
+    evidence_at_df = pmfs.mul(model_priors.astype(float)).T.sum()
     #Evidence may go to zero if some classes are already ruled out
-    valid_index = sum_over_classes > 0.0
-    sum_over_classes = sum_over_classes[valid_index]
+    valid_index = evidence_at_df > 0.0
+    evidence_at_df = evidence_at_df[valid_index]
     valid_pmfs = pmfs[valid_index]
 
     confusion = pd.DataFrame(
         [pd.Series(index=model_priors.index, name=mod)
          for mod in model_priors.index],
-        index=pd.Index(model_priors.index, name="True class"), )
+        index=pd.Index(model_priors.index, name="Label prob."), )
 
     pairings = combinations_with_replacement(model_priors.index, r=2)
     for true_class, label_class in pairings:
         #NB element-wise mult/div is simple for series:
         integral = (
-            valid_pmfs[true_class] * valid_pmfs[label_class] / sum_over_classes).sum()
-        confusion.loc[true_class, label_class] = model_priors[label_class] * integral
+            valid_pmfs[true_class] * valid_pmfs[label_class] / evidence_at_df).sum()
+        confusion.loc[label_class, true_class] = model_priors[label_class] * integral
         #When label / true are reversed, the calcs are same but for prior:
         if true_class != label_class:
             label_class, true_class = true_class, label_class
-            confusion.loc[true_class, label_class] = model_priors[label_class] * integral
+            confusion.loc[label_class, true_class] = model_priors[label_class] * integral
 
     return confusion
 
@@ -130,16 +130,17 @@ def compute_information_score(model_priors, pmfs):
     """
     # P[D_f | e,t_i]P[t_i]
     weighted_pmfs = pmfs.mul(model_priors.astype(float))
-    # \sum_k(P[D_f|e,t_k]P[t_k])
-    sum_over_classes = weighted_pmfs.T.sum()
+    # Evidence at D_f:
+    # \sum_k(P[D_f|e,t_k]P[t_k]) = P[D_f|e]
+    evidence_at_df = weighted_pmfs.T.sum()
 
-    valid_index = sum_over_classes > 0.0
-    sum_over_classes = sum_over_classes[valid_index]
+    valid_index = evidence_at_df > 0.0
+    evidence_at_df = evidence_at_df[valid_index]
     weighted_pmfs = weighted_pmfs[valid_index]
 
-    # P[D_f | e,t_i]P[t_i]
+    # P[D_f | e,l_k]P[l_k]
     #        / P[D_f|e]
-    normed_weighted_pmfs = weighted_pmfs.div(sum_over_classes, axis='index')
+    normed_weighted_pmfs = weighted_pmfs.div(evidence_at_df, axis='index')
     log_nw_pmfs = np.log(normed_weighted_pmfs)
     # Wherever PMF==0, log(PMF)=-inf.
     # Now, 0 * -inf = nan
@@ -152,7 +153,7 @@ def compute_information_score(model_priors, pmfs):
     utility_series = (normed_weighted_pmfs * log_nw_pmfs).T.sum()
 
     #expected utility:
-    # multiply utility at each data-outcome by P[t_j]P[D|e,t_j].
+    # multiply utility at each data-outcome by P[l_j]P[D|e,l_j].
     # Then integrate (sum over feature-space-grid), and sum over classes
     eu = weighted_pmfs.mul(utility_series, axis='index').sum().sum()
     return eu
