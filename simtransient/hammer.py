@@ -86,6 +86,7 @@ def trim_chain(sampler, pt=False,
         trimmed_samples = sampler.chain[0,:, nburn::acorr, :]
     # Now chain them all up into a long list of param samples:
     trimmed_samples = trimmed_samples.ravel().reshape(-1, ndim)
+    chainstats['ngood'] = len(trimmed_samples)
 
     return chainstats, trimmed_samples
 

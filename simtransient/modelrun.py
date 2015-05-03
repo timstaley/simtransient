@@ -11,6 +11,9 @@ from simtransient.models.multivariate import MultivarGaussHypers
 import simtransient.hammer as hammer
 import simtransient.plot as stplot
 import simtransient.utils as stutils
+from statsmodels.nonparametric.kde import KDEUnivariate
+from statsmodels.nonparametric.bandwidths import bw_silverman
+
 
 class ModelRun(object):
     def __init__(self,
@@ -68,7 +71,6 @@ class ModelRun(object):
             self.lnprob = self.gaussian_lnprob
 
         self.set_init_par_ball()
-
 
 
     def get_sampler(self, **kwargs):
@@ -137,14 +139,14 @@ class ModelRun(object):
         self.ml_pars = pd.Series(self.init_pars, name='MaxLikelihood',
                                  copy=True)
         ml_results = minimize(neg_likelihood, self.ml_pars)
-        self.ml_pars[:]=ml_results.x
+        self.ml_pars[:] = ml_results.x
 
         neg_post = lambda *args: -self.lnprob(*args)
         self.map_pars = pd.Series(self.init_pars, name='MaxPosterior',
                                   copy=True)
         map_results = minimize(neg_post, self.map_pars)
-        self.map_pars[:]=map_results.x
-        self.init_pars[:]=self.map_pars
+        self.map_pars[:] = map_results.x
+        self.init_pars[:] = self.map_pars
 
 
     def set_init_par_ball(self):
@@ -161,14 +163,13 @@ class ModelRun(object):
                                        self.ndim))
 
 
-    def run(self, sampler,nsteps):
+    def run(self, sampler, nsteps):
         pos, lnprob, rstate = sampler.run_mcmc(self.init_par_ball,
-                                                    N=nsteps)
+                                               N=nsteps)
         self.init_par_ball = pos
         self.chainstats, self.trimmed = hammer.trim_chain(sampler, self.pt)
         self._chain = sampler.chain
         return pos, lnprob, rstate
-
 
 
     def plot_walkers(self, axes=None):
@@ -192,14 +193,20 @@ class ModelRun(object):
     def plot_forecast(self,
                       tsteps,
                       t_forecast=None,
+                      use_kde=True,
+                      kde_noise_sigma=None,
                       plot_data=True,
                       true_curve=None,
                       subsample_size=75,
                       axes=None,
                       palette=None,
-                      alpha_hist=0.6,
                       ):
+        """
+        Plots the lightcurve ensemble for the given tsteps range.
 
+        If t_forecast is provided, a side-plot is created showing a KDE
+        cross-section of the lightcurve densities at that moment.
+        """
 
         if axes is None:
             if t_forecast is None:
@@ -216,14 +223,14 @@ class ModelRun(object):
             palette = seaborn.color_palette('Set1', 6)
             c_trace = palette[1]
             c_data = palette[2]
-            c_forecast = palette[4]
+            c_forecast_overplot = palette[4]
             c_true = palette[5]
         else:
             c_trace = palette['trace']
             if plot_data and self.obs_data is not None:
                 c_data = palette['data']
             if t_forecast is not None:
-                c_forecast = palette['forecast']
+                c_forecast_overplot = palette['forecast']
             if true_curve is not None:
                 c_true = palette['true']
 
@@ -249,6 +256,11 @@ class ModelRun(object):
                        # condition='Samples'
                        )
 
+        # if pad_low_margin:
+        # # Add a little breathing space at the bottom of the plot:
+        #     ylim = ts_ax.get_ylim()
+        #     ts_ax.set_ylim(ylim[0] - 0.05*(ylim[1]-ylim[0]), ylim[1])
+
         if plot_data and self.obs_data is not None:
             stplot.curve.graded_errorbar(self.obs_data,
                                          self.obs_sigma,
@@ -263,54 +275,125 @@ class ModelRun(object):
             ts_ax.plot(tsteps, true_curve(tsteps), ls='--', c=c_true,
                        label='True',
                        lw=lw_overplot)
-
-        if t_forecast is not None:
-            forecast_data = np.fromiter(
-                (self.ensemble.evaluate(t_forecast, *theta, **self.fixed_pars)
-                 for theta in self.trimmed),
-                dtype=np.float)
-
-            ts_ax.axvline(t_forecast,
-                          ls=ls_overplot,
-                          lw=lw_overplot,
-                          color=c_forecast,
-                          alpha=alpha_forecast,
-                          )
-            ts_ax.axhline(np.mean(forecast_data),
-                          label='Forecast',
-                          ls=ls_overplot,
-                          lw=lw_overplot,
-                          color=c_forecast,
-                          alpha=alpha_forecast,
-                          )
-
-            hist_ax.axhline(np.mean(forecast_data),
-                            ls=ls_overplot,
-                            lw=lw_overplot,
-                            color=c_forecast,
-                            alpha=alpha_forecast,
-                            )
-            hist_ax.hist(forecast_data,
-                         orientation='horizontal',
-                         normed=True,
-                         color=c_trace,
-                         alpha=alpha_hist)
-            _ = hist_ax.set_ylim(ts_ax.get_ylim())
-            hist_xlim=hist_ax.get_xlim()
-
-            #Prevent ticks overlapping too much:
-            max_hist_xticks = 4
-            hist_xloc = plt.MaxNLocator(max_hist_xticks)
-            hist_ax.xaxis.set_major_locator(hist_xloc)
-
-        
-            if true_curve:
+            if hist_ax:
                 hist_ax.axhline(true_curve(t_forecast),
                                 ls=ls_overplot,
                                 c=c_true)
 
-            ts_ax.legend(loc='best')
+        if t_forecast is not None:
+            forecast_data = self._compute_forecast_data(t_forecast)
+            if use_kde:
+                kde_ylims = self._plot_t_forecast_kde(
+                                        forecast_data,
+                                        noise_sigma=kde_noise_sigma,
+                                        kde_ax=hist_ax,
+                                        c_kde=c_trace)
+                if kde_ylims[0] < 0:
+                    #Extend the plots downwards to display KDE low tail:
+                    ts_ax.set_ylim(kde_ylims[0], ts_ax.get_ylim()[1])
+            else:
+                self._plot_t_forecast_hist(forecast_data,
+                                           hist_ax=hist_ax,
+                                           c_hist=c_trace)
+            hist_ax.set_ylim(ts_ax.get_ylim())
+            ts_ax.axvline(t_forecast,
+                          ls=ls_overplot,
+                          lw=lw_overplot,
+                          color=c_forecast_overplot,
+                          alpha=alpha_forecast,
+                          )
+
+
+            # ts_ax.axhline(np.mean(forecast_data),
+            # label='Forecast',
+            # ls=ls_overplot,
+            #               lw=lw_overplot,
+            #               color=c_forecast_overplot,
+            #               alpha=alpha_forecast,
+            #               )
+
+        ts_ax.legend(loc='best')
         return ts_ax, hist_ax
+
+
+    def _compute_forecast_data(self, t_forecast):
+        forecast_data = np.fromiter(
+            (self.ensemble.evaluate(t_forecast, *theta, **self.fixed_pars)
+             for theta in self.trimmed),
+            dtype=np.float)
+        return forecast_data
+
+    def _plot_t_forecast_hist(self,
+                              forecast_data,
+                              c_hist,
+                              hist_ax=None,
+                              alpha_hist=0.6):
+
+        if hist_ax is None:
+            hist_ax = plt.gca()
+
+        hist_ax.hist(forecast_data,
+                     orientation='horizontal',
+                     normed=True,
+                     color=c_hist,
+                     alpha=alpha_hist)
+
+        # Prevent ticks overlapping too much:
+        max_hist_xticks = 4
+        hist_xloc = plt.MaxNLocator(max_hist_xticks)
+        hist_ax.xaxis.set_major_locator(hist_xloc)
+
+    def _plot_t_forecast_kde(self,
+                             forecast_data,
+                             c_kde,
+                             noise_sigma=None,
+                             n_ysteps=200,
+                             kde_ax=None,
+                             alpha_kde_fill=0.2):
+        if kde_ax is None:
+            kde_ax = plt.gca()
+
+        data_minmax = forecast_data.min(), forecast_data.max()
+        data_range = (data_minmax[1] - data_minmax[0])
+        if noise_sigma is None:
+            y_limits = (data_minmax[0] - 0.1 * data_range,
+                        data_minmax[1] + 0.1 * data_range)
+        else:
+            y_limits = (data_minmax[0] - 2.5 * noise_sigma,
+                        data_minmax[1] + 2.5 * noise_sigma)
+        y_steps = np.linspace(y_limits[0], y_limits[1], n_ysteps)
+        kde_intrinsic = KDEUnivariate(forecast_data)
+
+        intrinsic_bw = bw_silverman(forecast_data)
+        kde_intrinsic.fit(bw=intrinsic_bw)
+        kde_intrinsic = kde_intrinsic.evaluate(y_steps)
+        kde_ax.plot(kde_intrinsic, y_steps,
+                    c=c_kde, ls='--')
+
+        if noise_sigma is not None and noise_sigma>intrinsic_bw:
+            kde_obs=KDEUnivariate(forecast_data)
+            kde_obs.fit(bw=noise_sigma)
+            kde_obs = kde_obs.evaluate(y_steps)
+            kde_ax.plot(kde_obs, y_steps,
+                        c=c_kde, ls='-')
+            kde_ax.fill_betweenx(y_steps,
+                             0, kde_obs,
+                             alpha=alpha_kde_fill,
+                             color=c_kde)
+        else:
+            kde_ax.fill_betweenx(y_steps,
+                             0, kde_intrinsic,
+                             alpha=alpha_kde_fill,
+                             color=c_kde)
+
+
+
+
+        # Prevent ticks overlapping too much:
+        max_hist_xticks = 4
+        kde_xloc = plt.MaxNLocator(max_hist_xticks)
+        kde_ax.xaxis.set_major_locator(kde_xloc)
+        return y_limits
 
 
     def gaussian_lnlikelihood(self, theta):
