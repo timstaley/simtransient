@@ -193,6 +193,7 @@ class ModelRun(object):
     def plot_forecast(self,
                       tsteps,
                       t_forecast=None,
+                      forecast_marker=True,
                       use_kde=True,
                       kde_noise_sigma=None,
                       plot_data=True,
@@ -236,7 +237,9 @@ class ModelRun(object):
 
         alpha_forecast = 0.5
         alpha_data = 0.9
-        ls_overplot = '--'
+        ls_true = '--'
+        ls_xsection = ':'
+
         lw_overplot = 5
 
         data_ms = 25
@@ -277,7 +280,7 @@ class ModelRun(object):
                        lw=lw_overplot)
             if hist_ax:
                 hist_ax.axhline(true_curve(t_forecast),
-                                ls=ls_overplot,
+                                ls=ls_true,
                                 c=c_true)
 
         if t_forecast is not None:
@@ -296,12 +299,14 @@ class ModelRun(object):
                                            hist_ax=hist_ax,
                                            c_hist=c_trace)
             hist_ax.set_ylim(ts_ax.get_ylim())
-            ts_ax.axvline(t_forecast,
-                          ls=ls_overplot,
-                          lw=lw_overplot,
-                          color=c_forecast_overplot,
-                          alpha=alpha_forecast,
-                          )
+            if forecast_marker:
+                ts_ax.axvline(t_forecast,
+                              ls=ls_xsection,
+                              lw=lw_overplot,
+                              color=c_forecast_overplot,
+                              alpha=alpha_forecast,
+                              label='Forecast epoch'
+                              )
 
 
             # ts_ax.axhline(np.mean(forecast_data),
