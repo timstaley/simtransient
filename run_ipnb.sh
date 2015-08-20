@@ -1,2 +1,2 @@
 #!/bin/bash
-PYTHONPATH=$PYTHONPATH:$(pwd) ipython notebook notebooks
+PYTHONPATH=$PYTHONPATH:$(pwd) jupyter notebook notebooks

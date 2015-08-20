@@ -36,7 +36,7 @@ class ModelRun(object):
         if np.isscalar(obs_sigma):
             self.obs_sigma = obs_sigma * np.ones_like(obs_data)
             self.obs_sigma_sq = obs_sigma * np.ones_like(obs_data)
-        else:
+        elif obs_sigma is not None:
             self.obs_sigma = np.array(obs_sigma)
             self.obs_sigma_sq = np.power(self.obs_sigma, 2)
 
