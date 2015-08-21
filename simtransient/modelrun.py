@@ -209,16 +209,21 @@ class ModelRun(object):
         cross-section of the lightcurve densities at that moment.
         """
 
+        if t_forecast is not None:
+            t_forecast = stutils.listify(t_forecast)
+
         if axes is None:
             if t_forecast is None:
                 ts_ax = plt.gca()
-                hist_ax = None
+                hist_axes = None
             else:
-                gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
+                width_ratios = [6]
+                width_ratios.extend([1]*len(t_forecast))
+                gs = gridspec.GridSpec(1, 1+len(t_forecast), width_ratios=width_ratios)
                 ts_ax = plt.subplot(gs[0])
-                hist_ax = plt.subplot(gs[1])
+                hist_axes = [ plt.subplot(gs[1+idx]) for idx in range(len(t_forecast))]
         else:
-            ts_ax, hist_ax = axes
+            ts_ax, hist_axes = axes
 
         if palette is None:
             palette = seaborn.color_palette('Set1', 6)
@@ -278,35 +283,43 @@ class ModelRun(object):
             ts_ax.plot(tsteps, true_curve(tsteps), ls='--', c=c_true,
                        label='True',
                        lw=lw_overplot)
-            if hist_ax:
-                hist_ax.axhline(true_curve(t_forecast),
-                                ls=ls_true,
-                                c=c_true)
+            # if hist_ax:
+            #     hist_ax.axhline(true_curve(t_forecast),
+            #                     ls=ls_true,
+            #                     c=c_true)
 
         if t_forecast is not None:
-            forecast_data = self.compute_forecast_data(t_forecast)
-            if use_kde:
-                kde_ylims = self._plot_t_forecast_kde(
-                                        forecast_data,
-                                        noise_sigma=kde_noise_sigma,
-                                        kde_ax=hist_ax,
-                                        c_kde=c_trace)
-                if kde_ylims[0] < 0:
-                    #Extend the plots downwards to display KDE low tail:
-                    ts_ax.set_ylim(kde_ylims[0], ts_ax.get_ylim()[1])
-            else:
-                self._plot_t_forecast_hist(forecast_data,
-                                           hist_ax=hist_ax,
-                                           c_hist=c_trace)
-            hist_ax.set_ylim(ts_ax.get_ylim())
-            if forecast_marker:
-                ts_ax.axvline(t_forecast,
-                              ls=ls_xsection,
-                              lw=lw_overplot,
-                              color=c_forecast_overplot,
-                              alpha=alpha_forecast,
-                              label='Forecast epoch'
-                              )
+            marker_label_set = False
+            for idx, tfor in enumerate(t_forecast):
+                h_ax = hist_axes[idx]
+                forecast_data = self.compute_forecast_data(tfor)
+                if use_kde:
+                    kde_ylims = self._plot_t_forecast_kde(
+                                            forecast_data,
+                                            noise_sigma=kde_noise_sigma,
+                                            kde_ax=h_ax,
+                                            c_kde=c_trace)
+                    if kde_ylims[0] < 0:
+                        #Extend the plots downwards to display KDE low tail:
+                        ts_ax.set_ylim(kde_ylims[0], ts_ax.get_ylim()[1])
+                else:
+                    self._plot_t_forecast_hist(forecast_data,
+                                               hist_ax=h_ax,
+                                               c_hist=c_trace)
+                h_ax.set_ylim(ts_ax.get_ylim())
+                if forecast_marker:
+                    if not marker_label_set:
+                        marker_label = 'Forecast epoch'
+                        marker_label_set = True
+                    else:
+                        marker_label = None
+                    ts_ax.axvline(tfor,
+                                  ls=ls_xsection,
+                                  lw=lw_overplot,
+                                  color=c_forecast_overplot,
+                                  alpha=alpha_forecast,
+                                  label=marker_label
+                                  )
 
 
             # ts_ax.axhline(np.mean(forecast_data),
@@ -318,7 +331,7 @@ class ModelRun(object):
             #               )
 
         ts_ax.legend(loc='best')
-        return ts_ax, hist_ax
+        return ts_ax, hist_axes
 
 
     def compute_forecast_data(self, t_forecast):
